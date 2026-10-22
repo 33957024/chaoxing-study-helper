@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         💯【超星学习通助手】AI自动答题|任务点自动跳转|章节测验/作业/考试|可视化参数配置
 // @namespace    askAuto
-// @version      1.0.5
+// @version      1.0.6
 // @author       超星学习通助手（基于 shushoujiu 原版二次开发）
 // @description  💯超星学习通助手：接入火山方舟 AI（豆包/DeepSeek）自动答题，支持联网搜索、任务点自动跳转、章节测验/作业/考试全流程自动化。
 // @icon         https://vitejs.dev/logo.svg
@@ -124,14 +124,14 @@
       autoExam: true,
       hideExam: false,
       notice:
-        "【超星学习通助手 v1.0.5 更新日志】\n" +
-        "🐛 修复：卡在「等待任务加载」永远不动\n" +
-        "   - waitIframeLoaded / waitElementLoaded 加 30s 超时兜底\n" +
-        "   - iframe 跨域/加载失败时也能往下走，不死锁\n" +
+        "【超星学习通助手 v1.0.6 更新日志】\n" +
+        "🔧 回退到 v1.0.3 逻辑，仅加 3 秒延时等待懒加载\n" +
+        "   - 去掉 v1.0.4 的「滚到底」逻辑（副作用大）\n" +
+        "   - 去掉 v1.0.5 的 wait 超时（会误判）\n" +
+        "   - 只在 scroll2Job() 后加 sleep(3000) 等渲染完\n" +
         "----------------------------------------\n" +
-        "【超星学习通助手 v1.0.4 更新日志】\n" +
-        "🐛 修复：每章最后几个小节被跳过（懒加载没渲染就扫 DOM）\n" +
-        "   - 扫之前先滚到底等 2s，再滚回顶部扫整章\n" +
+        "【超星学习通助手 v1.0.3 更新日志】\n" +
+        "🐛 修复：@updateURL/@downloadURL 指向 GitHub 仓库\n" +
         "----------------------------------------\n" +
         "本脚本仅供学习交流使用，严禁用于商业用途，否则后果自负！",
       deepseekKey: "",
@@ -3673,44 +3673,20 @@
       }),
     waitIframeLoaded = (iframe) =>
       new Promise((resolve) => {
-        let done = false;
-        const finish = () => {
-          if (done) return;
-          done = true;
-          clearInterval(timer);
-          clearTimeout(fallback);
-          resolve();
-        };
-        // 30 秒超时兜底：iframe 永远加载不出来时也能往下走
-        const fallback = setTimeout(finish, 30000);
         const timer = setInterval(() => {
           var _a;
-          if (!iframe) return finish();
-          try {
-            iframe.contentDocument &&
-            "complete" === ((_a = iframe.contentDocument) == null ? void 0 : _a.readyState)
-              ? finish()
-              : iframe.addEventListener("load", finish, { once: true });
-          } catch (e) {
-            // 跨域访问 contentDocument 抛错 = iframe 正在跨域加载，等下一轮
-          }
+          iframe.contentDocument &&
+          "complete" === ((_a = iframe.contentDocument) == null ? void 0 : _a.readyState)
+            ? (clearInterval(timer), resolve())
+            : iframe.addEventListener("load", () => {
+                (clearInterval(timer), resolve());
+              });
         }, 100);
       }),
     waitElementLoaded = (iframeWindow, selector) =>
       new Promise((resolve) => {
-        let done = false;
-        const finish = () => {
-          if (done) return;
-          done = true;
-          clearInterval(timer);
-          clearTimeout(fallback);
-          resolve();
-        };
-        const fallback = setTimeout(finish, 30000);
         const timer = setInterval(() => {
-          try {
-            iframeWindow.document.querySelector(selector) && finish();
-          } catch (e) {}
+          iframeWindow.document.querySelector(selector) && (clearInterval(timer), resolve());
         }, 100);
       }),
     removeHtml = (html) =>
@@ -5694,24 +5670,8 @@
         const _self1 = cardsIframe.contentWindow;
         _self1Ref = _self1;
         newlyDone = 0;
-
-        // ============================================================
-        // v1.0.4：扫 DOM 前先滚到底，触发所有懒加载任务点渲染
-        // ------------------------------------------------------------
-        // 学习通章节页是懒加载的，只渲染视口附近的任务点。
-        // 之前只调 scroll2Job() 滚到第一个任务就 querySelectorAll，
-        // 导致视口下方的「资源安全/核安全」小节 DOM 还没挂载，扫不到。
-        // 现在先滚到底等 2 秒，再滚回顶部扫整章所有任务点。
-        // ============================================================
-        try {
-          _self1.scrollTo(0, _self1.document.body.scrollHeight);
-        } catch (e) {}
-        await sleep(2000);
-        try {
-          top.scroll2Job();
-        } catch (e) {}
-        await sleep(500);
-
+        top.scroll2Job();
+        await sleep(3000);   // v1.0.6：等懒加载渲染 3 秒再扫 DOM
         let jobList = _self1.document.querySelectorAll(".ans-job-icon") || [];
         for (let i = 0; i < jobList.length; i++) {
           const item = jobList[i];
