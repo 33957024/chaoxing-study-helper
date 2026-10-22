@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         💯【超星学习通助手】AI自动答题|任务点自动跳转|章节测验/作业/考试|可视化参数配置
 // @namespace    askAuto
-// @version      1.0.0
+// @version      1.0.1
 // @author       超星学习通助手（基于 shushoujiu 原版二次开发）
 // @description  💯超星学习通助手：接入火山方舟 AI（豆包/DeepSeek）自动答题，支持联网搜索、任务点自动跳转、章节测验/作业/考试全流程自动化。
 // @icon         https://vitejs.dev/logo.svg
@@ -37,8 +37,8 @@
 // @run-at       document-end
 // @antifeature  ads      脚本可能包含第三方接口广告
 // @antifeature  payment  脚本存在第三方答题接口付费功能
-// @downloadURL https://raw.githubusercontent.com/33957024/chaoxing-study-helper/main/%E8%B6%85%E6%98%9F%E5%AD%A6%E4%B9%A0%E9%80%9A%E5%8A%A9%E6%89%8B.user.js
-// @updateURL  https://raw.githubusercontent.com/33957024/chaoxing-study-helper/main/%E8%B6%85%E6%98%9F%E5%AD%A6%E4%B9%A0%E9%80%9A%E5%8A%A9%E6%89%8B.user.js
+// @downloadURL https://update.greasyfork.org/scripts/436994/%F0%9F%92%AF%E3%80%90%E8%B6%85%E6%98%9F%E5%AD%A6%E4%B9%A0%E9%80%9A%E6%BB%A1%E5%88%86%E5%8A%A9%E6%89%8B%E3%80%91%E6%94%AF%E6%8C%81%E4%BB%BB%E5%8A%A1%E7%82%B9%E8%87%AA%E5%8A%A8%E8%B7%B3%E8%BD%AC%7C%E7%AB%A0%E8%8A%82%E6%B5%8B%E9%AA%8C%E3%80%81%E4%BD%9C%E4%B8%9A%E3%80%81%E8%80%83%E8%AF%95%E5%85%A8%E7%BD%91%E6%A3%80%E7%B4%A2%E7%AD%94%E6%A1%88%EF%BC%8C%E7%AE%80%E7%AD%94%E9%A2%98%E6%94%AF%E6%8C%81chatgpt%E5%AF%B9%E6%8E%A5%7C%E9%9F%B3%E9%A2%91%E3%80%81%E8%A7%86%E9%A2%91%E5%85%A8%E8%87%AA%E5%8A%A8%E9%9D%99%E9%9F%B3%E6%92%AD%E6%94%BE%7C%E5%8F%AF%E8%A7%86%E5%8C%96%E5%8F%82%E6%95%B0%E9%85%8D%E7%BD%AE.user.js
+// @updateURL https://update.greasyfork.org/scripts/436994/%F0%9F%92%AF%E3%80%90%E8%B6%85%E6%98%9F%E5%AD%A6%E4%B9%A0%E9%80%9A%E6%BB%A1%E5%88%86%E5%8A%A9%E6%89%8B%E3%80%91%E6%94%AF%E6%8C%81%E4%BB%BB%E5%8A%A1%E7%82%B9%E8%87%AA%E5%8A%A8%E8%B7%B3%E8%BD%AC%7C%E7%AB%A0%E8%8A%82%E6%B5%8B%E9%AA%8C%E3%80%81%E4%BD%9C%E4%B8%9A%E3%80%81%E8%80%83%E8%AF%95%E5%85%A8%E7%BD%91%E6%A3%80%E7%B4%A2%E7%AD%94%E6%A1%88%EF%BC%8C%E7%AE%80%E7%AD%94%E9%A2%98%E6%94%AF%E6%8C%81chatgpt%E5%AF%B9%E6%8E%A5%7C%E9%9F%B3%E9%A2%91%E3%80%81%E8%A7%86%E9%A2%91%E5%85%A8%E8%87%AA%E5%8A%A8%E9%9D%99%E9%9F%B3%E6%92%AD%E6%94%BE%7C%E5%8F%AF%E8%A7%86%E5%8C%96%E5%8F%82%E6%95%B0%E9%85%8D%E7%BD%AE.meta.js
 // ==/UserScript==
 
 ((t) => {
@@ -124,13 +124,18 @@
       autoExam: true,
       hideExam: false,
       notice:
-        "【超星学习通助手 v1.0.0 更新日志】\n" +
-        "✨ 新版特性：\n" +
+        "【超星学习通助手 v1.0.1 更新日志】\n" +
+        "🐛 修复：回补扫描后卡住不去下一章（学习通状态同步延迟导致重复做同一题）\n" +
+        "   - 加 processedSet 避免重复处理同一元素\n" +
+        "   - 每轮回补后等 1.5s 让完成状态挂上\n" +
+        "   - .nextChapter 找不到时打日志提示\n" +
+        "----------------------------------------\n" +
+        "v1.0.0 新版特性：\n" +
         "  • 接入火山方舟 AI（默认 doubao-seed-evolving）自动答题\n" +
         "  • 支持豆包联网搜索（Responses API + web_search tool）\n" +
-        "  • AI 请求超时从 30s 提升到 60s，失败自动重试最多 3 次\n" +
-        "  • 题目识别按文本去重 + 可见性过滤，减少一题多识别\n" +
-        "  • 每完成 5 个任务点自动回补扫描，防止漏题\n" +
+        "  • AI 请求 60s 超时，失败自动重试最多 3 次\n" +
+        "  • 题目识别按文本去重 + 可见性过滤\n" +
+        "  • 每 5 个任务点自动回补扫描，防止漏题\n" +
         "  • AI 出错分级兜底：偶发抖动先重试、连续失败才关开关\n" +
         "  • 配置面板新增「AI能力」独立 tab\n" +
         "----------------------------------------\n" +
@@ -5618,12 +5623,16 @@
       };
 
       // 回补扫描：把所有未完成的任务点补做一遍，返回是否补了新东西
+      const processedSet = new WeakSet();   // 已处理过的元素，避免重复做同一题
       const sweepGaps = async (label) => {
         top.scroll2Job();
         await sleep(1000);   // 等懒加载渲染完
         const list = (_self1Ref || _self1).document.querySelectorAll(".ans-job-icon") || [];
         let gaps = [];
         for (let el of list) {
+          // ① 已经处理过的元素跳过（避免刚做完又判"未完成"重复做）
+          if (processedSet.has(el)) continue;
+          // ② 未挂完成 class 的才算漏题
           if (!isFinished(el)) gaps.push(el);
         }
         if (gaps.length === 0) {
@@ -5633,6 +5642,7 @@
         console.warn(`[${label}] 发现 ${gaps.length} 个漏题，回补...`);
         cxModel.askStore.log(`[回补] 发现 ${gaps.length} 个漏题，开始回补`, "warning");
         for (let el of gaps) {
+          processedSet.add(el);   // 无论成败都标记为已处理，避免下一轮再扫到
           try {
             await processOne(el);
             newlyDone++;
@@ -5640,6 +5650,8 @@
             console.error("[回补] 单个任务失败:", e);
           }
         }
+        // 等 1.5 秒让学习通把 .ans-job-finished class 挂上（状态同步有延迟）
+        await sleep(1500);
         return true;
       };
 
@@ -5668,6 +5680,7 @@
             }
             (console.log(iframe.src, "已完成"), cxModel.askStore.log("已完成的任务点,跳过"));
           } else {
+            processedSet.add(item);   // 主循环处理过的元素也标记，避免 sweep 重复做
             try {
               await processOne(item);
               newlyDone++;
@@ -5694,10 +5707,20 @@
           round++;
         }
 
-        (await sleep(formStore.forminput.interval),
-          !formStore.forminput.autoJump && cxModel.askStore.msg("由于未开启自动切换,请手动切换"),
-          formStore.forminput.autoJump &&
-            (top == null ? void 0 : top.document.querySelector(".nextChapter").click()));
+        await sleep(formStore.forminput.interval);
+        if (!formStore.forminput.autoJump) {
+          cxModel.askStore.msg("由于未开启自动切换,请手动切换");
+        } else {
+          const nextBtn = top?.document?.querySelector(".nextChapter");
+          if (nextBtn) {
+            console.log("[章节完成] 点击下一章按钮");
+            cxModel.askStore.log("章节完成，切换到下一章", "success");
+            nextBtn.click();
+          } else {
+            console.warn("[章节完成] 未找到 .nextChapter 按钮，可能是最后一章");
+            cxModel.askStore.log("已到最后一章或找不到下一章按钮，停止", "warning");
+          }
+        }
       };
       setInterval(async () => {
         await waitElementLoaded(_self, "#iframe");
