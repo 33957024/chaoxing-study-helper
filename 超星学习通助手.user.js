@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         💯【超星学习通助手】AI自动答题|任务点自动跳转|章节测验/作业/考试|可视化参数配置
 // @namespace    askAuto
-// @version      1.0.4
+// @version      1.0.5
 // @author       超星学习通助手（基于 shushoujiu 原版二次开发）
 // @description  💯超星学习通助手：接入火山方舟 AI（豆包/DeepSeek）自动答题，支持联网搜索、任务点自动跳转、章节测验/作业/考试全流程自动化。
 // @icon         https://vitejs.dev/logo.svg
@@ -124,14 +124,14 @@
       autoExam: true,
       hideExam: false,
       notice:
+        "【超星学习通助手 v1.0.5 更新日志】\n" +
+        "🐛 修复：卡在「等待任务加载」永远不动\n" +
+        "   - waitIframeLoaded / waitElementLoaded 加 30s 超时兜底\n" +
+        "   - iframe 跨域/加载失败时也能往下走，不死锁\n" +
+        "----------------------------------------\n" +
         "【超星学习通助手 v1.0.4 更新日志】\n" +
         "🐛 修复：每章最后几个小节被跳过（懒加载没渲染就扫 DOM）\n" +
         "   - 扫之前先滚到底等 2s，再滚回顶部扫整章\n" +
-        "   - 视口外的资源安全/核安全等小节也能扫到\n" +
-        "----------------------------------------\n" +
-        "【超星学习通助手 v1.0.3 更新日志】\n" +
-        "🐛 修复：@updateURL/@downloadURL 误指向 GreasyFork 旧地址\n" +
-        "   - 改为指向 GitHub raw 仓库，自动更新拉我们的版本\n" +
         "----------------------------------------\n" +
         "本脚本仅供学习交流使用，严禁用于商业用途，否则后果自负！",
       deepseekKey: "",
@@ -3673,20 +3673,44 @@
       }),
     waitIframeLoaded = (iframe) =>
       new Promise((resolve) => {
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          clearInterval(timer);
+          clearTimeout(fallback);
+          resolve();
+        };
+        // 30 秒超时兜底：iframe 永远加载不出来时也能往下走
+        const fallback = setTimeout(finish, 30000);
         const timer = setInterval(() => {
           var _a;
-          iframe.contentDocument &&
-          "complete" === ((_a = iframe.contentDocument) == null ? void 0 : _a.readyState)
-            ? (clearInterval(timer), resolve())
-            : iframe.addEventListener("load", () => {
-                (clearInterval(timer), resolve());
-              });
+          if (!iframe) return finish();
+          try {
+            iframe.contentDocument &&
+            "complete" === ((_a = iframe.contentDocument) == null ? void 0 : _a.readyState)
+              ? finish()
+              : iframe.addEventListener("load", finish, { once: true });
+          } catch (e) {
+            // 跨域访问 contentDocument 抛错 = iframe 正在跨域加载，等下一轮
+          }
         }, 100);
       }),
     waitElementLoaded = (iframeWindow, selector) =>
       new Promise((resolve) => {
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          clearInterval(timer);
+          clearTimeout(fallback);
+          resolve();
+        };
+        const fallback = setTimeout(finish, 30000);
         const timer = setInterval(() => {
-          iframeWindow.document.querySelector(selector) && (clearInterval(timer), resolve());
+          try {
+            iframeWindow.document.querySelector(selector) && finish();
+          } catch (e) {}
         }, 100);
       }),
     removeHtml = (html) =>
