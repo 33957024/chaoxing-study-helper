@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         💯【超星学习通助手】AI自动答题|任务点自动跳转|章节测验/作业/考试|可视化参数配置
 // @namespace    askAuto
-// @version      1.0.3
+// @version      1.0.4
 // @author       超星学习通助手（基于 shushoujiu 原版二次开发）
 // @description  💯超星学习通助手：接入火山方舟 AI（豆包/DeepSeek）自动答题，支持联网搜索、任务点自动跳转、章节测验/作业/考试全流程自动化。
 // @icon         https://vitejs.dev/logo.svg
@@ -124,16 +124,14 @@
       autoExam: true,
       hideExam: false,
       notice:
+        "【超星学习通助手 v1.0.4 更新日志】\n" +
+        "🐛 修复：每章最后几个小节被跳过（懒加载没渲染就扫 DOM）\n" +
+        "   - 扫之前先滚到底等 2s，再滚回顶部扫整章\n" +
+        "   - 视口外的资源安全/核安全等小节也能扫到\n" +
+        "----------------------------------------\n" +
         "【超星学习通助手 v1.0.3 更新日志】\n" +
         "🐛 修复：@updateURL/@downloadURL 误指向 GreasyFork 旧地址\n" +
         "   - 改为指向 GitHub raw 仓库，自动更新拉我们的版本\n" +
-        "----------------------------------------\n" +
-        "【超星学习通助手 v1.0.2 更新日志】\n" +
-        "🐛 修复：交卷后卡住不去下一章\n" +
-        "   - 去掉章节测验自动 reload（避免 DOM 重建导致回补死循环）\n" +
-        "   - 回补扫描加 processedSet(WeakSet) 防重复处理\n" +
-        "   - 每轮回补后等 1.5s 让完成状态挂上\n" +
-        "   - .nextChapter 找不到时打日志提示\n" +
         "----------------------------------------\n" +
         "本脚本仅供学习交流使用，严禁用于商业用途，否则后果自负！",
       deepseekKey: "",
@@ -5672,7 +5670,24 @@
         const _self1 = cardsIframe.contentWindow;
         _self1Ref = _self1;
         newlyDone = 0;
-        top.scroll2Job();
+
+        // ============================================================
+        // v1.0.4：扫 DOM 前先滚到底，触发所有懒加载任务点渲染
+        // ------------------------------------------------------------
+        // 学习通章节页是懒加载的，只渲染视口附近的任务点。
+        // 之前只调 scroll2Job() 滚到第一个任务就 querySelectorAll，
+        // 导致视口下方的「资源安全/核安全」小节 DOM 还没挂载，扫不到。
+        // 现在先滚到底等 2 秒，再滚回顶部扫整章所有任务点。
+        // ============================================================
+        try {
+          _self1.scrollTo(0, _self1.document.body.scrollHeight);
+        } catch (e) {}
+        await sleep(2000);
+        try {
+          top.scroll2Job();
+        } catch (e) {}
+        await sleep(500);
+
         let jobList = _self1.document.querySelectorAll(".ans-job-icon") || [];
         for (let i = 0; i < jobList.length; i++) {
           const item = jobList[i];
