@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         💯【超星学习通助手】AI自动答题|任务点自动跳转|章节测验/作业/考试|可视化参数配置
 // @namespace    askAuto
-// @version      1.0.1
+// @version      1.0.2
 // @author       超星学习通助手（基于 shushoujiu 原版二次开发）
 // @description  💯超星学习通助手：接入火山方舟 AI（豆包/DeepSeek）自动答题，支持联网搜索、任务点自动跳转、章节测验/作业/考试全流程自动化。
 // @icon         https://vitejs.dev/logo.svg
@@ -124,20 +124,18 @@
       autoExam: true,
       hideExam: false,
       notice:
-        "【超星学习通助手 v1.0.1 更新日志】\n" +
-        "🐛 修复：回补扫描后卡住不去下一章（学习通状态同步延迟导致重复做同一题）\n" +
-        "   - 加 processedSet 避免重复处理同一元素\n" +
+        "【超星学习通助手 v1.0.2 更新日志】\n" +
+        "🐛 修复：交卷后卡住不去下一章\n" +
+        "   - 去掉章节测验自动 reload（避免 DOM 重建导致回补死循环）\n" +
+        "   - 回补扫描加 processedSet(WeakSet) 防重复处理\n" +
         "   - 每轮回补后等 1.5s 让完成状态挂上\n" +
         "   - .nextChapter 找不到时打日志提示\n" +
         "----------------------------------------\n" +
-        "v1.0.0 新版特性：\n" +
-        "  • 接入火山方舟 AI（默认 doubao-seed-evolving）自动答题\n" +
-        "  • 支持豆包联网搜索（Responses API + web_search tool）\n" +
-        "  • AI 请求 60s 超时，失败自动重试最多 3 次\n" +
-        "  • 题目识别按文本去重 + 可见性过滤\n" +
-        "  • 每 5 个任务点自动回补扫描，防止漏题\n" +
-        "  • AI 出错分级兜底：偶发抖动先重试、连续失败才关开关\n" +
-        "  • 配置面板新增「AI能力」独立 tab\n" +
+        "【超星学习通助手 v1.0.1 更新日志】\n" +
+        "🐛 修复：回补扫描后卡住不去下一章\n" +
+        "   - 加 processedSet 避免重复处理同一元素\n" +
+        "   - 每轮回补后等 1.5s 让完成状态挂上\n" +
+        "   - .nextChapter 找不到时打日志提示\n" +
         "----------------------------------------\n" +
         "本脚本仅供学习交流使用，严禁用于商业用途，否则后果自负！",
       deepseekKey: "",
@@ -5318,10 +5316,10 @@
                 iframeWindow.submitCheckTimes(),
                 this.askStore.log("章节测验已完成", "success"),
                 await randomSleep(5, 10),
-                this.askStore.log("正在刷新页面...", "info"),
-                iframeWindow.location.reload()),
-            (this.askStore.task.status = `章节测验已完成，等待切换,正确率:${succ}/${ques.length}`),
-            resolve())
+                // v1.0.2：去掉 location.reload()——reload 会销毁 iframe DOM，
+                //   导致 processedSet 失效 + 新 DOM 状态未同步，sweepGaps 死循环
+                (this.askStore.task.status = `章节测验已完成，等待切换,正确率:${succ}/${ques.length}`),
+                resolve()))
           : (this.askStore.log("已完成答题，未开启自动提交，等待手动提交中", "success"),
             (this.askStore.task.status = `正在等待手动提交,正确率:${succ}/${ques.length}`));
       });
@@ -5579,6 +5577,7 @@
       const CHECKPOINT_EVERY = 5;
       let newlyDone = 0;   // 本次章节里新完成的任务点计数（不含原本就完成的）
       let _self1Ref = null;  // 当前章节的 iframe window，供 sweepGaps 复用
+      let reloadTriggered = false;  // work() 交卷触发 reload 后置位，跳过 sweep
 
       // 判断单个任务点是否已经完成
       const isFinished = (item) => {
@@ -5603,7 +5602,19 @@
           const workIframe = iframe.contentWindow?.document?.querySelector("iframe");
           if (workIframe) {
             await waitIframeLoaded(workIframe);
+            const oldDoc = workIframe.contentWindow?.document;
             await cxModel.work(workIframe.contentWindow);
+            // work() 自动提交后会 location.reload()，此时 document 已被销毁重建
+            // 检测到就置位 reloadTriggered，跳过 sweepGaps 直接下一章
+            try {
+              if (!workIframe.contentWindow || workIframe.contentWindow.document !== oldDoc) {
+                reloadTriggered = true;
+                cxModel.askStore.log("作业交卷后 iframe 已重载，跳回主流程", "info");
+              }
+            } catch (e) {
+              // 跨域访问被拒 = iframe 正在重载中，同样置位
+              reloadTriggered = true;
+            }
             cxModel.askStore.log("作业任务已完成", "success");
           }
         } else if (iframe?.src.match(/\/ananas\/modules\/audio\/index.html/)) {
@@ -5698,13 +5709,19 @@
         }
 
         // 章节末尾再回补一次，确保没有漏网之鱼
-        console.log("章节末尾回补扫描...");
-        cxModel.askStore.log("章节末尾回补扫描...", "info");
-        let swept = true;
-        let round = 0;
-        while (swept && round < 3) {
-          swept = await sweepGaps(`末尾回补#${round + 1}`);
-          round++;
+        // 但如果 work() 已经触发 reload，就不扫了——iframe 正在重载，扫了也白扫
+        if (reloadTriggered) {
+          console.log("[章节完成] 检测到 work() 已触发 reload，跳过末尾回补");
+          cxModel.askStore.log("作业交卷刷新中，跳过回补直接切下一章", "info");
+        } else {
+          console.log("章节末尾回补扫描...");
+          cxModel.askStore.log("章节末尾回补扫描...", "info");
+          let swept = true;
+          let round = 0;
+          while (swept && round < 3) {
+            swept = await sweepGaps(`末尾回补#${round + 1}`);
+            round++;
+          }
         }
 
         await sleep(formStore.forminput.interval);
