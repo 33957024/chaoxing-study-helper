@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         💯【超星学习通助手】AI自动答题|任务点自动跳转|章节测验/作业/考试|可视化参数配置
 // @namespace    askAuto
-// @version      1.0.2
+// @version      1.0.3
 // @author       超星学习通助手（基于 shushoujiu 原版二次开发）
 // @description  💯超星学习通助手：接入火山方舟 AI（豆包/DeepSeek）自动答题，支持联网搜索、任务点自动跳转、章节测验/作业/考试全流程自动化。
 // @icon         https://vitejs.dev/logo.svg
@@ -37,8 +37,8 @@
 // @run-at       document-end
 // @antifeature  ads      脚本可能包含第三方接口广告
 // @antifeature  payment  脚本存在第三方答题接口付费功能
-// @downloadURL https://update.greasyfork.org/scripts/436994/%F0%9F%92%AF%E3%80%90%E8%B6%85%E6%98%9F%E5%AD%A6%E4%B9%A0%E9%80%9A%E6%BB%A1%E5%88%86%E5%8A%A9%E6%89%8B%E3%80%91%E6%94%AF%E6%8C%81%E4%BB%BB%E5%8A%A1%E7%82%B9%E8%87%AA%E5%8A%A8%E8%B7%B3%E8%BD%AC%7C%E7%AB%A0%E8%8A%82%E6%B5%8B%E9%AA%8C%E3%80%81%E4%BD%9C%E4%B8%9A%E3%80%81%E8%80%83%E8%AF%95%E5%85%A8%E7%BD%91%E6%A3%80%E7%B4%A2%E7%AD%94%E6%A1%88%EF%BC%8C%E7%AE%80%E7%AD%94%E9%A2%98%E6%94%AF%E6%8C%81chatgpt%E5%AF%B9%E6%8E%A5%7C%E9%9F%B3%E9%A2%91%E3%80%81%E8%A7%86%E9%A2%91%E5%85%A8%E8%87%AA%E5%8A%A8%E9%9D%99%E9%9F%B3%E6%92%AD%E6%94%BE%7C%E5%8F%AF%E8%A7%86%E5%8C%96%E5%8F%82%E6%95%B0%E9%85%8D%E7%BD%AE.user.js
-// @updateURL https://update.greasyfork.org/scripts/436994/%F0%9F%92%AF%E3%80%90%E8%B6%85%E6%98%9F%E5%AD%A6%E4%B9%A0%E9%80%9A%E6%BB%A1%E5%88%86%E5%8A%A9%E6%89%8B%E3%80%91%E6%94%AF%E6%8C%81%E4%BB%BB%E5%8A%A1%E7%82%B9%E8%87%AA%E5%8A%A8%E8%B7%B3%E8%BD%AC%7C%E7%AB%A0%E8%8A%82%E6%B5%8B%E9%AA%8C%E3%80%81%E4%BD%9C%E4%B8%9A%E3%80%81%E8%80%83%E8%AF%95%E5%85%A8%E7%BD%91%E6%A3%80%E7%B4%A2%E7%AD%94%E6%A1%88%EF%BC%8C%E7%AE%80%E7%AD%94%E9%A2%98%E6%94%AF%E6%8C%81chatgpt%E5%AF%B9%E6%8E%A5%7C%E9%9F%B3%E9%A2%91%E3%80%81%E8%A7%86%E9%A2%91%E5%85%A8%E8%87%AA%E5%8A%A8%E9%9D%99%E9%9F%B3%E6%92%AD%E6%94%BE%7C%E5%8F%AF%E8%A7%86%E5%8C%96%E5%8F%82%E6%95%B0%E9%85%8D%E7%BD%AE.meta.js
+// @downloadURL https://raw.githubusercontent.com/33957024/chaoxing-study-helper/main/%E8%B6%85%E6%98%9F%E5%AD%A6%E4%B9%A0%E9%80%9A%E5%8A%A9%E6%89%8B.user.js
+// @updateURL  https://raw.githubusercontent.com/33957024/chaoxing-study-helper/main/%E8%B6%85%E6%98%9F%E5%AD%A6%E4%B9%A0%E9%80%9A%E5%8A%A9%E6%89%8B.user.js
 // ==/UserScript==
 
 ((t) => {
@@ -124,16 +124,14 @@
       autoExam: true,
       hideExam: false,
       notice:
+        "【超星学习通助手 v1.0.3 更新日志】\n" +
+        "🐛 修复：@updateURL/@downloadURL 误指向 GreasyFork 旧地址\n" +
+        "   - 改为指向 GitHub raw 仓库，自动更新拉我们的版本\n" +
+        "----------------------------------------\n" +
         "【超星学习通助手 v1.0.2 更新日志】\n" +
         "🐛 修复：交卷后卡住不去下一章\n" +
         "   - 去掉章节测验自动 reload（避免 DOM 重建导致回补死循环）\n" +
         "   - 回补扫描加 processedSet(WeakSet) 防重复处理\n" +
-        "   - 每轮回补后等 1.5s 让完成状态挂上\n" +
-        "   - .nextChapter 找不到时打日志提示\n" +
-        "----------------------------------------\n" +
-        "【超星学习通助手 v1.0.1 更新日志】\n" +
-        "🐛 修复：回补扫描后卡住不去下一章\n" +
-        "   - 加 processedSet 避免重复处理同一元素\n" +
         "   - 每轮回补后等 1.5s 让完成状态挂上\n" +
         "   - .nextChapter 找不到时打日志提示\n" +
         "----------------------------------------\n" +
